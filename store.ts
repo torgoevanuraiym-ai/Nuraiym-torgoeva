@@ -81,9 +81,14 @@ export interface AnnouncementRecord {
   actionText?: string;
 }
 
+export interface SiteSettings {
+  intakeOpen: boolean;
+}
+
 interface JsonDbSchema {
   volunteers: VolunteerRecord[];
   announcements: AnnouncementRecord[];
+  settings?: SiteSettings;
 }
 
 const DATA_DIR = process.env.DATA_DIR
@@ -104,10 +109,21 @@ function writeJsonDb(data: JsonDbSchema): void {
   fs.renameSync(tmpPath, DB_PATH);
 }
 
+function normalizeSettings(raw: unknown): SiteSettings {
+  const obj = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  return {
+    intakeOpen: obj.intakeOpen !== false,
+  };
+}
+
 function readJsonDb(): JsonDbSchema {
   ensureDataDir();
   if (!fs.existsSync(DB_PATH)) {
-    const empty: JsonDbSchema = { volunteers: [], announcements: [] };
+    const empty: JsonDbSchema = {
+      volunteers: [],
+      announcements: [],
+      settings: { intakeOpen: true },
+    };
     writeJsonDb(empty);
     return empty;
   }
@@ -117,9 +133,10 @@ function readJsonDb(): JsonDbSchema {
     return {
       volunteers: Array.isArray(parsed?.volunteers) ? parsed.volunteers : [],
       announcements: Array.isArray(parsed?.announcements) ? parsed.announcements : [],
+      settings: normalizeSettings(parsed?.settings),
     };
   } catch {
-    return { volunteers: [], announcements: [] };
+    return { volunteers: [], announcements: [], settings: { intakeOpen: true } };
   }
 }
 
@@ -134,8 +151,23 @@ export const store = {
   async init(): Promise<void> {
     ensureDataDir();
     if (!fs.existsSync(DB_PATH)) {
-      writeJsonDb({ volunteers: [], announcements: [] });
+      writeJsonDb({ volunteers: [], announcements: [], settings: { intakeOpen: true } });
     }
+  },
+
+  async getSettings(): Promise<SiteSettings> {
+    const db = readJsonDb();
+    return normalizeSettings(db.settings);
+  },
+
+  async updateSettings(patch: Partial<SiteSettings>): Promise<SiteSettings> {
+    const db = readJsonDb();
+    const current = normalizeSettings(db.settings);
+    const next: SiteSettings = {
+      intakeOpen: typeof patch.intakeOpen === 'boolean' ? patch.intakeOpen : current.intakeOpen,
+    };
+    writeJsonDb({ ...db, settings: next });
+    return next;
   },
 
   async listVolunteers(): Promise<VolunteerRecord[]> {
@@ -195,6 +227,11 @@ export const store = {
   async listAnnouncements(): Promise<AnnouncementRecord[]> {
     const db = readJsonDb();
     return db.announcements;
+  },
+
+  async setAnnouncements(announcements: AnnouncementRecord[]): Promise<void> {
+    const db = readJsonDb();
+    writeJsonDb({ ...db, announcements });
   },
 
   async upsertAnnouncement(item: AnnouncementRecord): Promise<AnnouncementRecord> {

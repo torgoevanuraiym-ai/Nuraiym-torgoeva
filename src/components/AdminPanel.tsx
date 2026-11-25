@@ -61,6 +61,8 @@ interface AdminPanelProps {
   onChangePassword?: (currentPassword: string, newPassword: string) => Promise<void>;
   onSyncSheets?: () => Promise<{ ok?: boolean; added: number; total?: number; enabled?: boolean }>;
   onRefreshVolunteers?: () => Promise<void> | void;
+  intakeOpen?: boolean;
+  onToggleIntake?: (nextOpen: boolean) => Promise<void> | void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -81,8 +83,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onChangePassword,
   onSyncSheets,
   onRefreshVolunteers,
+  intakeOpen = true,
+  onToggleIntake,
 }) => {
   const t = TRANSLATIONS[lang].admin;
+  const tIntake = TRANSLATIONS[lang].intake;
   const deptList = TRANSLATIONS[lang].departments.items;
 
   const [activeAdminSection, setActiveAdminSection] = useState<'volunteers' | 'announcements'>('volunteers');
@@ -92,6 +97,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [volunteerActionToastType, setVolunteerActionToastType] = useState<'success' | 'error'>('success');
   const [isSyncingSheets, setIsSyncingSheets] = useState(false);
   const [isRefreshingVolunteers, setIsRefreshingVolunteers] = useState(false);
+  const [isTogglingIntake, setIsTogglingIntake] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState<string>('all');
@@ -882,6 +888,67 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           />
         ) : (
           <>
+            {/* Volunteer Intake Open/Closed Control */}
+            {onToggleIntake && (
+              <div
+                className={`mb-5 p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs ${
+                  intakeOpen
+                    ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950'
+                    : 'bg-amber-50/90 border-amber-300 text-amber-950'
+                }`}
+              >
+                <div className="flex items-start sm:items-center gap-3">
+                  <span
+                    className={`w-3 h-3 rounded-full mt-1 sm:mt-0 shrink-0 ${
+                      intakeOpen ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                    }`}
+                  />
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs sm:text-sm font-bold">
+                        {tIntake.adminToggleLabel}
+                      </span>
+                      <span
+                        className={`text-xs font-extrabold uppercase px-2 py-0.5 rounded-md ${
+                          intakeOpen
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-amber-600 text-white'
+                        }`}
+                      >
+                        {intakeOpen ? tIntake.openShort : tIntake.closedShort}
+                      </span>
+                    </div>
+                    <p className="text-xs opacity-85 mt-0.5">
+                      {intakeOpen ? tIntake.adminOpenHint : tIntake.adminClosedHint}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    disabled={isTogglingIntake}
+                    onClick={async () => {
+                      if (isTogglingIntake) return;
+                      setIsTogglingIntake(true);
+                      try {
+                        await onToggleIntake(!intakeOpen);
+                      } finally {
+                        setIsTogglingIntake(false);
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs disabled:opacity-60 ${
+                      intakeOpen
+                        ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    }`}
+                  >
+                    {intakeOpen ? tIntake.adminCloseBtn : tIntake.adminOpenBtn}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* KPI Counter Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4 mb-6">
           <button

@@ -211,6 +211,20 @@ export interface Translations {
     madeWithLove: string;
     rights: string;
   };
+  intake: {
+    openBadge: string;
+    closedBadge: string;
+    openShort: string;
+    closedShort: string;
+    ageRule: string;
+    closedTitle: string;
+    closedDesc: string;
+    adminToggleLabel: string;
+    adminOpenHint: string;
+    adminClosedHint: string;
+    adminOpenBtn: string;
+    adminCloseBtn: string;
+  };
 }
 
 export const TRANSLATIONS: Record<Language, Translations> = {
@@ -387,8 +401,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "address": "Дарегиңиз (шаары, көчөсү же окуу жайы) *",
       "addressPlaceholder": "Мисалы: Бишкек ш., 7-кичи район же КУУ кампусу",
       "addressHint": "Уюм менен байланышуу жана координация үчүн дарегиңиз калат.",
-      "age": "Жашыңыз",
-      "agePlaceholder": "Мисалы: 20",
+      "age": "Жашыңыз (17 жаштан жогору)",
+      "agePlaceholder": "Мисалы: 17 же 20",
       "phone": "Телефон номериңиз (WhatsApp) *",
       "phonePlaceholder": "Мисалы: +996 700 123 456",
       "instagram": "Жеке Instagram аккаунтуңуз же портфолио",
@@ -515,7 +529,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "items": [
         {
           "q": "Кимдер «Жаратман Ордонун» волонтеру боло алат?",
-          "a": "14 жаштан 30 жашка чейинки бардык демилгелүү, чыгармачылыкка, искусствого, медиага же коомдук долбоорлорго кызыккан жаштар катыша алат."
+          "a": "17 жаштан жогору ыктыярчылар кошула алат — чыгармачылыкка, искусствого, медиага же коомдук долбоорлорго кызыккан бардык демилгелүү жаштар катыша алат."
         },
         {
           "q": "Окуу же жумуш менен чогуу айкалыштырууга болобу?",
@@ -538,6 +552,20 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "city": "Кыргыз Республикасы, Бишкек шаары",
       "madeWithLove": "Кыргызстандын жаштары үчүн сүйүү менен жаралган",
       "rights": "«Жаратман Ордо» чыгармачыл жаштар уюму. Бардык укуктар корголгон."
+    },
+    "intake": {
+      "openBadge": "Набор ачык · Кабыл алуу жүрүп жатат",
+      "closedBadge": "Набор жабык · Кабыл алуу убактылуу токтотулду",
+      "openShort": "Набор ачык",
+      "closedShort": "Набор жабык",
+      "ageRule": "17 жаштан жогору ыктыярчылар кошула алат",
+      "closedTitle": "Ыктыярчыларды кабыл алуу (набор) азыр жабык",
+      "closedDesc": "Учурда жаңы анкеталарды кабыл алуу убактылуу токтотулган. Кийинки набор ачылганда ушул бетте дароо ачылат.",
+      "adminToggleLabel": "Ыктыярчыларды кабыл алуу (Набор):",
+      "adminOpenHint": "Сырткы сайтта анкета ачык — талапкерлер өтүнмө жөнөтө алышат.",
+      "adminClosedHint": "Сырткы сайтта набор жабык — жаңы анкеталар кабыл алынбайт.",
+      "adminOpenBtn": "Наборду ачуу",
+      "adminCloseBtn": "Наборду жабуу"
     }
   },
   "ru": {
@@ -713,8 +741,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "address": "Ваш адрес (город, улица или учебное заведение) *",
       "addressPlaceholder": "Например: г. Бишкек, 7-мкр или кампус КНУ",
       "addressHint": "Адрес сохраняется для координации и подтверждения участия.",
-      "age": "Ваш возраст",
-      "agePlaceholder": "Например: 20",
+      "age": "Ваш возраст (от 17 лет)",
+      "agePlaceholder": "Например: 17 или 20",
       "phone": "Ваш номер телефона (WhatsApp) *",
       "phonePlaceholder": "Например: +996 700 123 456",
       "instagram": "Ваш профиль в Instagram или портфолио",
@@ -841,7 +869,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "items": [
         {
           "q": "Кто может стать волонтёром «Жаратман Ордо»?",
-          "a": "Молодёжь от 14 до 30 лет, заинтересованная в искусстве, медиа и социальных проектах."
+          "a": "К нам могут присоединиться волонтёры от 17 лет и старше — активная молодёжь, заинтересованная в творчестве, искусстве, медиа и социальных проектах."
         },
         {
           "q": "Можно ли совмещать с учёбой или работой?",
@@ -864,6 +892,20 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "city": "Кыргызская Республика, г. Бишкек",
       "madeWithLove": "Создано с любовью для молодёжи Кыргызстана",
       "rights": "Творческая молодёжная организация «Жаратман Ордо». Все права защищены."
+    },
+    "intake": {
+      "openBadge": "Набор открыт · Идёт приём заявок",
+      "closedBadge": "Набор закрыт · Приём заявок приостановлен",
+      "openShort": "Набор открыт",
+      "closedShort": "Набор закрыт",
+      "ageRule": "Могут присоединиться волонтёры от 17 лет и старше",
+      "closedTitle": "Приём волонтёров (набор) сейчас закрыт",
+      "closedDesc": "В данный момент приём новых анкет временно приостановлен. Когда откроется новый набор, анкета снова станет доступной.",
+      "adminToggleLabel": "Приём волонтёров (Набор):",
+      "adminOpenHint": "Форма анкеты открыта на сайте — кандидаты могут подавать заявки.",
+      "adminClosedHint": "Набор закрыт на сайте — новые анкеты временно не принимаются.",
+      "adminOpenBtn": "Открыть набор",
+      "adminCloseBtn": "Закрыть набор"
     }
   },
   "en": {
@@ -1039,8 +1081,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "address": "Your Address (City, Street, or Institution) *",
       "addressPlaceholder": "e.g. Bishkek, 7th microdistrict or KNU Campus",
       "addressHint": "Your address is kept for community coordination and records.",
-      "age": "Your Age",
-      "agePlaceholder": "e.g. 20",
+      "age": "Your Age (17+)",
+      "agePlaceholder": "e.g. 17 or 20",
       "phone": "Your Phone Number (WhatsApp) *",
       "phonePlaceholder": "e.g. +996 700 123 456",
       "instagram": "Your Instagram Account or Portfolio",
@@ -1167,7 +1209,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "items": [
         {
           "q": "Who can volunteer with «Jaratman Ordo»?",
-          "a": "Youth aged 14 to 30 with a passion for arts, culture, media, and community projects."
+          "a": "Volunteers aged 17 and above can join — motivated youth with a passion for arts, culture, media, and community projects."
         },
         {
           "q": "Can I combine this with studies or work?",
@@ -1186,6 +1228,20 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "city": "Bishkek, Kyrgyz Republic",
       "madeWithLove": "Crafted with passion for youth in Kyrgyzstan",
       "rights": "«Jaratman Ordo» Creative Youth Organization. All rights reserved."
+    },
+    "intake": {
+      "openBadge": "Intake Open · Accepting Applications",
+      "closedBadge": "Intake Closed · Temporarily Paused",
+      "openShort": "Intake Open",
+      "closedShort": "Intake Closed",
+      "ageRule": "Volunteers aged 17 and above can join",
+      "closedTitle": "Volunteer Intake Is Currently Closed",
+      "closedDesc": "New applications are temporarily paused. When the next intake opens, this application form will automatically reopen.",
+      "adminToggleLabel": "Volunteer Intake (Recruitment):",
+      "adminOpenHint": "Public application form is open — candidates can submit applications.",
+      "adminClosedHint": "Public intake is closed — new submissions are temporarily disabled.",
+      "adminOpenBtn": "Open Intake",
+      "adminCloseBtn": "Close Intake"
     }
   }
 };

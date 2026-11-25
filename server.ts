@@ -459,17 +459,35 @@ async function startServer() {
   await store.init();
   await sheetsMirror.init();
 
-  // Restore from Google Sheets backup on startup if primary db.json has no volunteers
-  const existingVolunteers = await store.listVolunteers();
-  if (existingVolunteers.length === 0 && sheetsMirror.isEnabled()) {
-    const restored = await sheetsMirror.restoreFromSheet();
-    if (restored.length > 0) {
-      await store.setVolunteers(restored);
-      console.log(
-        `[server] Restored ${restored.length} volunteer applications from Google Sheets backup.`
-      );
-    } else {
-      console.log('[server] Restored 0 volunteer applications from Google Sheets backup.');
+  // Restore from Google Sheets backup on startup if primary db.json is empty
+  if (sheetsMirror.isEnabled()) {
+    const existingVolunteers = await store.listVolunteers();
+    if (existingVolunteers.length === 0) {
+      const restored = await sheetsMirror.restoreFromSheet();
+      if (restored.length > 0) {
+        await store.setVolunteers(restored);
+        console.log(
+          `[server] Restored ${restored.length} volunteer applications from Google Sheets backup.`
+        );
+      } else {
+        console.log('[server] Restored 0 volunteer applications from Google Sheets backup.');
+      }
+    }
+
+    const existingAnnouncements = await store.listAnnouncements();
+    if (existingAnnouncements.length === 0) {
+      const restoredAnn = await sheetsMirror.restoreAnnouncementsFromSheet();
+      if (restoredAnn.length > 0) {
+        await store.setAnnouncements(restoredAnn);
+        console.log(
+          `[server] Restored ${restoredAnn.length} announcements from Google Sheets backup.`
+        );
+      }
+    }
+
+    const restoredSettings = await sheetsMirror.restoreSettingsFromSheet();
+    if (restoredSettings) {
+      await store.updateSettings(restoredSettings);
     }
   }
 
@@ -663,6 +681,8 @@ async function startServer() {
 
         const volunteers = await store.listVolunteers();
         const result = await sheetsMirror.syncMissingVolunteers(volunteers);
+        sheetsMirror.enqueueSaveAnnouncements(await store.listAnnouncements());
+        sheetsMirror.enqueueSaveSettings(await store.getSettings());
         const added = typeof result?.added === 'number' ? result.added : 0;
         const total = volunteers.length;
         console.log(`[sheetsMirror] Sync result: added=${added}, total=${total}`);
@@ -690,6 +710,30 @@ async function startServer() {
     })
   );
 
+  // --- Site Settings Endpoints ---
+  app.get(
+    '/api/settings',
+    asyncHandler(async (_req, res) => {
+      const settings = await store.getSettings();
+      res.json(settings);
+    })
+  );
+
+  app.patch(
+    '/api/admin/settings',
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      const body = req.body;
+      if (!body || typeof body !== 'object' || Array.isArray(body) || typeof body.intakeOpen !== 'boolean') {
+        res.status(400).json({ error: 'invalid_payload' });
+        return;
+      }
+      const updated = await store.updateSettings({ intakeOpen: body.intakeOpen });
+      sheetsMirror.enqueueSaveSettings(updated);
+      res.json(updated);
+    })
+  );
+
   // --- Volunteer Endpoints ---
   app.post(
     '/api/volunteers',
@@ -706,6 +750,12 @@ async function startServer() {
 
       const isAdmin = verifySession(req) && verifySameOriginIfPresent(req);
       if (!isAdmin) {
+        const settings = await store.getSettings();
+        if (!settings.intakeOpen) {
+          logReject(403, 'intake_closed');
+          res.status(403).json({ error: 'intake_closed' });
+          return;
+        }
         const ip = getClientIp(req);
         const now = Date.now();
         const recentSubmits = pruneTimestamps(submitStore, ip, SUBMIT_WINDOW_MS, now);
@@ -797,8 +847,14 @@ async function startServer() {
       }
 
       const address = cleanString(body.address, 300);
-      const age =
-        cleanString(typeof body.age === 'number' ? String(body.age) : body.age, 20) || '18+';
+      const rawAge = cleanString(typeof body.age === 'number' ? String(body.age) : body.age, 20);
+      const ageNumMatch = rawAge.match(/^(\d{1,3})\b/);
+      if (ageNumMatch && Number(ageNumMatch[1]) < 17) {
+        logReject(400, 'age_under_17');
+        res.status(400).json({ error: 'age_under_17' });
+        return;
+      }
+      const age = rawAge || '17+';
       const cityOrUniversity = cleanString(body.cityOrUniversity, 300) || address;
       const occupation = cleanString(body.occupation, 200) || undefined;
       const motivation = cleanString(body.motivation, 3000);
@@ -941,6 +997,9 @@ async function startServer() {
       if (patch.status !== undefined) {
         sheetsMirror.enqueueUpdateStatus(id, updated.status);
       }
+      if (patch.notes !== undefined) {
+        sheetsMirror.enqueueUpdateNotes(id, updated.notes || '');
+      }
       res.json(updated);
     })
   );
@@ -1021,6 +1080,7 @@ async function startServer() {
       };
 
       const saved = await store.upsertAnnouncement(record);
+      sheetsMirror.enqueueSaveAnnouncements(await store.listAnnouncements());
       res.status(201).json(saved);
     })
   );
@@ -1080,6 +1140,7 @@ async function startServer() {
         res.status(404).json({ error: 'not_found' });
         return;
       }
+      sheetsMirror.enqueueSaveAnnouncements(await store.listAnnouncements());
       res.json(updated);
     })
   );
@@ -1098,6 +1159,7 @@ async function startServer() {
         res.status(404).json({ error: 'not_found' });
         return;
       }
+      sheetsMirror.enqueueSaveAnnouncements(await store.listAnnouncements());
       res.json({ ok: true });
     })
   );
@@ -1107,6 +1169,7 @@ async function startServer() {
     requireAdmin,
     asyncHandler(async (_req, res) => {
       await store.clearAnnouncements();
+      sheetsMirror.enqueueSaveAnnouncements([]);
       res.json({ ok: true });
     })
   );

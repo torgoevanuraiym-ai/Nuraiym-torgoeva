@@ -24,6 +24,7 @@ import {
   Check,
   Image as ImageIcon,
   Phone,
+  Lock,
 } from 'lucide-react';
 import { Language, TRANSLATIONS } from '../data/translations';
 import { api, ApiError, SubmitVolunteerPayload } from '../api';
@@ -34,6 +35,7 @@ interface VolunteerFormProps {
   onSelectDepartment: (id: DepartmentId) => void;
   onSubmitSuccess: (savedRecord: VolunteerApplication) => void | Promise<void>;
   lang: Language;
+  intakeOpen?: boolean;
 }
 
 const COMMON_SKILLS_BY_LANG: Record<Language, string[]> = {
@@ -169,6 +171,22 @@ function getFormErrorMessage(lang: Language, code?: string, status?: number): st
       : 'Please enter a valid phone number (e.g. +996 700 123 456).';
   }
 
+  if (normalizedCode === 'age_under_17') {
+    return lang === 'ky'
+      ? '17 жаштан жогору ыктыярчылар кошула алат. Жашыңызды текшериңиз.'
+      : lang === 'ru'
+      ? 'К нам могут присоединиться волонтёры от 17 лет и старше. Проверьте указанный возраст.'
+      : 'Volunteers aged 17 and above can join. Please check your entered age.';
+  }
+
+  if (normalizedCode === 'intake_closed') {
+    return lang === 'ky'
+      ? 'Ыктыярчыларды кабыл алуу (набор) убактылуу жабык.'
+      : lang === 'ru'
+      ? 'Приём волонтёров (набор) временно закрыт.'
+      : 'Volunteer intake is currently closed.';
+  }
+
   if (normalizedCode === 'invalid_department') {
     return lang === 'ky'
       ? 'Туура эмес багыт тандалды. Бөлүмдү кайра тандаңыз.'
@@ -269,8 +287,10 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
   onSelectDepartment,
   onSubmitSuccess,
   lang,
+  intakeOpen = true,
 }) => {
   const t = TRANSLATIONS[lang].form;
+  const tIntake = TRANSLATIONS[lang].intake;
   const deptList = TRANSLATIONS[lang].departments.items;
 
   // Basic info (fullName, phone, address, age)
@@ -662,6 +682,12 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
       return;
     }
 
+    const ageMatch = age.trim().match(/^(\d{1,3})\b/);
+    if (ageMatch && Number(ageMatch[1]) < 17) {
+      setErrorMsg(getFormErrorMessage(lang, 'age_under_17'));
+      return;
+    }
+
     // 3. Mandatory certificate validation
     const validCerts = certificates.filter((c) => c.title.trim().length > 0);
     if (validCerts.length === 0) {
@@ -725,7 +751,7 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
       const payload: SubmitVolunteerPayload = {
         fullName: fullName.trim(),
         address: address.trim(),
-        age: age.trim() || '18+',
+        age: age.trim() || '17+',
         cityOrUniversity: address.trim(),
         department,
         selfiePhotoUrl: compressedPhoto,
@@ -792,9 +818,25 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold tracking-wider uppercase mb-3 border border-emerald-300">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-            <span>{t.sectionNum}</span>
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold tracking-wider uppercase border border-emerald-300">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+              <span>{t.sectionNum}</span>
+            </div>
+            <div
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+                intakeOpen
+                  ? 'bg-emerald-600 text-white border-emerald-700'
+                  : 'bg-amber-100 text-amber-900 border-amber-300'
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  intakeOpen ? 'bg-emerald-200 animate-pulse' : 'bg-amber-500'
+                }`}
+              />
+              <span>{intakeOpen ? tIntake.openShort : tIntake.closedShort}</span>
+            </div>
           </div>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-stone-900 font-display tracking-tight text-balance">
             {t.heading}
@@ -802,9 +844,32 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
           <p className="mt-3 text-xs sm:text-sm text-stone-600 leading-relaxed">
             {t.subheading}
           </p>
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-emerald-800 bg-emerald-100/70 px-3.5 py-1.5 rounded-xl border border-emerald-200">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>{tIntake.ageRule}</span>
+          </p>
         </div>
 
-        {/* Card Container: Bright, elegant, matching emblem */}
+        {/* Card Container: Closed Notice or Active Form */}
+        {!intakeOpen ? (
+          <div className="bg-white rounded-3xl p-8 sm:p-12 border border-amber-300/90 shadow-xl shadow-amber-950/5 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center mx-auto">
+              <Lock className="w-7 h-7" />
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200 text-xs font-bold">
+              {tIntake.closedBadge}
+            </div>
+            <h3 className="text-xl sm:text-2xl font-extrabold text-stone-900 font-display">
+              {tIntake.closedTitle}
+            </h3>
+            <p className="text-sm text-stone-600 max-w-lg mx-auto leading-relaxed">
+              {tIntake.closedDesc}
+            </p>
+            <p className="text-xs font-semibold text-emerald-800 pt-2">
+              {tIntake.ageRule}
+            </p>
+          </div>
+        ) : (
         <div className="bg-white rounded-3xl p-6 sm:p-10 border border-emerald-200/90 shadow-xl shadow-emerald-950/5 backdrop-blur-sm">
           <form onSubmit={handleSubmit} noValidate className="space-y-10">
             {/* 1. БӨЛҮМ: ӨЗҮН КАМЕРАДАН ТАРТУУ (СӨЗСҮЗ) */}
@@ -1541,6 +1606,7 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
             </div>
           </form>
         </div>
+        )}
       </div>
 
       <PrivacyPolicyModal

@@ -191,6 +191,15 @@ export const api = {
       method: 'POST',
     }),
 
+  // Site Settings
+  getSettings: () => request<{ intakeOpen: boolean }>('/api/settings'),
+
+  updateAdminSettings: (patch: { intakeOpen: boolean }) =>
+    request<{ intakeOpen: boolean }>('/api/admin/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+
   // Volunteers
   submitVolunteer: (payload: SubmitVolunteerPayload) =>
     request<VolunteerApplication>('/api/volunteers', {

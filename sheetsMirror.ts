@@ -1,15 +1,37 @@
 import { google, sheets_v4 } from 'googleapis';
 import {
+  AnnouncementCategory,
+  AnnouncementRecord,
   ApplicationStatus,
   DepartmentId,
+  SiteSettings,
   VolunteerCertificate,
   VolunteerPastProject,
   VolunteerRecord,
 } from './store';
 
 const SHEET_NAME = 'volunteers';
+const ANNOUNCEMENTS_SHEET_NAME = 'announcements';
+const SETTINGS_SHEET_NAME = 'settings';
 const CACHE_TTL_MS = 7_000; // 7 seconds read cache
 const MAX_THUMB_SHEET_CHARS = 45_000;
+const MAX_CELL_CHARS = 45_000;
+
+const ANNOUNCEMENT_HEADERS = [
+  'id',
+  'badge',
+  'badgeType',
+  'date',
+  'title',
+  'summary',
+  'content',
+  'location',
+  'imageUrl',
+  'videoUrl',
+  'actionText',
+] as const;
+
+const ALLOWED_ANN_TYPES = new Set<AnnouncementCategory>(['urgent', 'event', 'project', 'news']);
 
 export const VOLUNTEER_SHEET_HEADERS = [
   'id',
@@ -255,7 +277,7 @@ function deserializeVolunteerRow(row: unknown[]): VolunteerRecord | null {
   if (!fullName) return null;
 
   const address = String(row[5] ?? '').trim();
-  const age = String(row[6] ?? '18+').trim() || '18+';
+  const age = String(row[6] ?? '17+').trim() || '17+';
 
   const rawDept = String(row[7] ?? 'media_smm').trim() as DepartmentId;
   const department: DepartmentId = VALID_DEPARTMENTS.has(rawDept) ? rawDept : 'media_smm';
@@ -485,8 +507,10 @@ export const sheetsMirror = {
   },
 
   async init(): Promise<void> {
-    const rawB64 = process.env.GOOGLE_SERVICE_ACCOUNT_B64?.trim() || '';
-    const sheetId = process.env.GOOGLE_SHEET_ID?.trim() || '';
+    const rawCredInput = process.env.GOOGLE_SERVICE_ACCOUNT_B64?.trim() || '';
+    const rawSheetInput = process.env.GOOGLE_SHEET_ID?.trim() || '';
+    const urlMatch = rawSheetInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    const sheetId = urlMatch ? urlMatch[1] : rawSheetInput;
 
     sheetsClient = null;
     targetSheetId = null;
@@ -498,8 +522,8 @@ export const sheetsMirror = {
     disabledDetail = null;
     missingEnvVars = [];
 
-    if (!rawB64 || !sheetId) {
-      if (!rawB64) missingEnvVars.push('GOOGLE_SERVICE_ACCOUNT_B64');
+    if (!rawCredInput || !sheetId) {
+      if (!rawCredInput) missingEnvVars.push('GOOGLE_SERVICE_ACCOUNT_B64');
       if (!sheetId) missingEnvVars.push('GOOGLE_SHEET_ID');
       disabledReason = 'missing_env';
       disabledDetail = `не заданы переменные: ${missingEnvVars.join(', ')}`;
@@ -507,26 +531,30 @@ export const sheetsMirror = {
       return;
     }
 
-    const compactB64 = rawB64.replace(/\s+/g, '');
-    if (!/^[A-Za-z0-9+/_-]+={0,2}$/.test(compactB64)) {
-      disabledReason = 'invalid_base64';
-      disabledDetail = 'ошибка декодирования GOOGLE_SERVICE_ACCOUNT_B64 (некорректный base64)';
-      console.log(`Sheets mirror: OFF: ${disabledDetail}`);
-      return;
-    }
-
     let decoded = '';
-    try {
-      const standardB64 = compactB64.replace(/-/g, '+').replace(/_/g, '/');
-      decoded = Buffer.from(standardB64, 'base64').toString('utf8').trim();
-      if (!decoded.startsWith('{')) {
-        throw new Error('Decoded base64 does not contain JSON object');
+    if (rawCredInput.startsWith('{')) {
+      decoded = rawCredInput;
+    } else {
+      const compactB64 = rawCredInput.replace(/\s+/g, '');
+      if (!/^[A-Za-z0-9+/_-]+={0,2}$/.test(compactB64)) {
+        disabledReason = 'invalid_base64';
+        disabledDetail = 'ошибка декодирования GOOGLE_SERVICE_ACCOUNT_B64 (некорректный base64)';
+        console.log(`Sheets mirror: OFF: ${disabledDetail}`);
+        return;
       }
-    } catch {
-      disabledReason = 'invalid_base64';
-      disabledDetail = 'ошибка декодирования GOOGLE_SERVICE_ACCOUNT_B64 (не удалось прочитать JSON из base64)';
-      console.log(`Sheets mirror: OFF: ${disabledDetail}`);
-      return;
+
+      try {
+        const standardB64 = compactB64.replace(/-/g, '+').replace(/_/g, '/');
+        decoded = Buffer.from(standardB64, 'base64').toString('utf8').trim();
+        if (!decoded.startsWith('{')) {
+          throw new Error('Decoded base64 does not contain JSON object');
+        }
+      } catch {
+        disabledReason = 'invalid_base64';
+        disabledDetail = 'ошибка декодирования GOOGLE_SERVICE_ACCOUNT_B64 (не удалось прочитать JSON из base64)';
+        console.log(`Sheets mirror: OFF: ${disabledDetail}`);
+        return;
+      }
     }
 
     let parsedCreds: { client_email?: string; private_key?: string };
@@ -621,6 +649,28 @@ export const sheetsMirror = {
           valueInputOption: 'RAW',
           requestBody: {
             values: [[status]],
+          },
+        })
+      );
+      invalidateCache();
+    });
+  },
+
+  enqueueUpdateNotes(id: string, notes: string): void {
+    enqueue(`updateNotes(${id})`, async () => {
+      if (!sheetsClient || !targetSheetId) return;
+      const rows = await readSheetDataRows(true);
+      const dataIdx = rows.findIndex((r) => (r[0] || '').trim() === id);
+      if (dataIdx === -1) return;
+
+      const sheetRowNumber = dataIdx + 2; // Row 1 is header
+      await withMissingTabRecovery(() =>
+        sheetsClient!.spreadsheets.values.update({
+          spreadsheetId: targetSheetId!,
+          range: `${SHEET_NAME}!N${sheetRowNumber}`,
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [[notes.slice(0, MAX_CELL_CHARS)]],
           },
         })
       );
@@ -740,6 +790,152 @@ export const sheetsMirror = {
     opQueue = job.catch(() => {});
     await job;
     return { added, enabled: true };
+  },
+
+  enqueueSaveAnnouncements(announcements: AnnouncementRecord[]): void {
+    enqueue(`saveAnnouncements(${announcements.length})`, async () => {
+      if (!sheetsClient || !targetSheetId) return;
+      const meta = await sheetsClient.spreadsheets.get({
+        spreadsheetId: targetSheetId,
+        fields: 'sheets(properties(sheetId,title))',
+      });
+      const exists = meta.data.sheets?.some((s) => s.properties?.title === ANNOUNCEMENTS_SHEET_NAME);
+      if (!exists) {
+        await sheetsClient.spreadsheets.batchUpdate({
+          spreadsheetId: targetSheetId,
+          requestBody: {
+            requests: [{ addSheet: { properties: { title: ANNOUNCEMENTS_SHEET_NAME } } }],
+          },
+        });
+      }
+      await sheetsClient.spreadsheets.values.clear({
+        spreadsheetId: targetSheetId,
+        range: `${ANNOUNCEMENTS_SHEET_NAME}!A:K`,
+      });
+      const safeCell = (val: string | undefined) => {
+        if (!val) return '';
+        return val.length <= MAX_CELL_CHARS ? val : '';
+      };
+      const rows = [
+        [...ANNOUNCEMENT_HEADERS],
+        ...announcements.map((a) => [
+          a.id,
+          a.badge || '',
+          a.badgeType || 'news',
+          a.date || '',
+          a.title || '',
+          a.summary || '',
+          safeCell(a.content),
+          a.location || '',
+          safeCell(a.imageUrl),
+          safeCell(a.videoUrl),
+          a.actionText || '',
+        ]),
+      ];
+      await sheetsClient.spreadsheets.values.update({
+        spreadsheetId: targetSheetId,
+        range: `${ANNOUNCEMENTS_SHEET_NAME}!A1:K${rows.length}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: rows },
+      });
+    });
+  },
+
+  async restoreAnnouncementsFromSheet(): Promise<AnnouncementRecord[]> {
+    if (!enabled || !sheetsClient || !targetSheetId) return [];
+    try {
+      const meta = await sheetsClient.spreadsheets.get({
+        spreadsheetId: targetSheetId,
+        fields: 'sheets(properties(title))',
+      });
+      const exists = meta.data.sheets?.some((s) => s.properties?.title === ANNOUNCEMENTS_SHEET_NAME);
+      if (!exists) return [];
+      const res = await sheetsClient.spreadsheets.values.get({
+        spreadsheetId: targetSheetId,
+        range: `${ANNOUNCEMENTS_SHEET_NAME}!A2:K`,
+      });
+      const rows = res.data.values || [];
+      return rows
+        .map((r): AnnouncementRecord | null => {
+          const id = String(r[0] ?? '').trim();
+          const title = String(r[4] ?? '').trim();
+          const content = String(r[6] ?? '').trim();
+          if (!id || !title || !content) return null;
+          const rawType = String(r[2] ?? 'news').trim() as AnnouncementCategory;
+          return {
+            id,
+            badge: String(r[1] ?? '').trim() || 'ЖАҢЫЛЫК',
+            badgeType: ALLOWED_ANN_TYPES.has(rawType) ? rawType : 'news',
+            date: String(r[3] ?? '').trim(),
+            title,
+            summary: String(r[5] ?? '').trim(),
+            content,
+            location: String(r[7] ?? '').trim() || undefined,
+            imageUrl: String(r[8] ?? '').trim() || undefined,
+            videoUrl: String(r[9] ?? '').trim() || undefined,
+            actionText: String(r[10] ?? '').trim() || undefined,
+          };
+        })
+        .filter((x): x is AnnouncementRecord => x !== null);
+    } catch (err) {
+      console.warn(`[sheetsMirror] restoreAnnouncementsFromSheet skipped: ${sanitizeErrorMessage(err)}`);
+      return [];
+    }
+  },
+
+  enqueueSaveSettings(settings: SiteSettings): void {
+    enqueue(`saveSettings`, async () => {
+      if (!sheetsClient || !targetSheetId) return;
+      const meta = await sheetsClient.spreadsheets.get({
+        spreadsheetId: targetSheetId,
+        fields: 'sheets(properties(sheetId,title))',
+      });
+      const exists = meta.data.sheets?.some((s) => s.properties?.title === SETTINGS_SHEET_NAME);
+      if (!exists) {
+        await sheetsClient.spreadsheets.batchUpdate({
+          spreadsheetId: targetSheetId,
+          requestBody: {
+            requests: [{ addSheet: { properties: { title: SETTINGS_SHEET_NAME } } }],
+          },
+        });
+      }
+      await sheetsClient.spreadsheets.values.update({
+        spreadsheetId: targetSheetId,
+        range: `${SETTINGS_SHEET_NAME}!A1:B2`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [
+            ['key', 'value'],
+            ['intakeOpen', settings.intakeOpen ? 'true' : 'false'],
+          ],
+        },
+      });
+    });
+  },
+
+  async restoreSettingsFromSheet(): Promise<SiteSettings | null> {
+    if (!enabled || !sheetsClient || !targetSheetId) return null;
+    try {
+      const meta = await sheetsClient.spreadsheets.get({
+        spreadsheetId: targetSheetId,
+        fields: 'sheets(properties(title))',
+      });
+      const exists = meta.data.sheets?.some((s) => s.properties?.title === SETTINGS_SHEET_NAME);
+      if (!exists) return null;
+      const res = await sheetsClient.spreadsheets.values.get({
+        spreadsheetId: targetSheetId,
+        range: `${SETTINGS_SHEET_NAME}!A2:B`,
+      });
+      const rows = res.data.values || [];
+      const row = rows.find((r) => String(r[0] ?? '').trim() === 'intakeOpen');
+      if (!row) return null;
+      return {
+        intakeOpen: String(row[1] ?? '').trim().toLowerCase() !== 'false',
+      };
+    } catch (err) {
+      console.warn(`[sheetsMirror] restoreSettingsFromSheet skipped: ${sanitizeErrorMessage(err)}`);
+      return null;
+    }
   },
 
   async flush(timeoutMs = 4500): Promise<void> {

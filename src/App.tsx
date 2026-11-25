@@ -31,6 +31,7 @@ export default function App() {
 
   const [volunteers, setVolunteers] = useState<VolunteerApplication[]>([]);
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+  const [intakeOpen, setIntakeOpen] = useState<boolean>(true);
 
   // Language State (KY default, RU, EN)
   const [lang, setLang] = useState<Language>(() => {
@@ -134,9 +135,15 @@ export default function App() {
 
     const init = async () => {
       try {
-        const annList = await api.getAnnouncements();
+        const [annList, settings] = await Promise.all([
+          api.getAnnouncements().catch(() => null),
+          api.getSettings().catch(() => null),
+        ]);
         if (!cancelled) {
-          setAnnouncements(annList);
+          if (Array.isArray(annList)) setAnnouncements(annList);
+          if (settings && typeof settings.intakeOpen === 'boolean') {
+            setIntakeOpen(settings.intakeOpen);
+          }
         }
       } catch {
         // ignore
@@ -253,6 +260,18 @@ export default function App() {
       setVolunteers((prev) => [created, ...prev]);
     } catch (err) {
       await handleAdminApiError(err, reloadVolunteers);
+    }
+  };
+
+  const handleToggleIntake = async (nextOpen: boolean) => {
+    const prev = intakeOpen;
+    setIntakeOpen(nextOpen);
+    try {
+      const updated = await api.updateAdminSettings({ intakeOpen: nextOpen });
+      setIntakeOpen(updated.intakeOpen);
+    } catch (err) {
+      setIntakeOpen(prev);
+      await handleAdminApiError(err);
     }
   };
 
@@ -433,6 +452,7 @@ export default function App() {
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
             lang={lang}
+            intakeOpen={intakeOpen}
           />
 
           {/* News & Announcements Panel */}
@@ -457,6 +477,7 @@ export default function App() {
             onSelectDepartment={(id) => setSelectedDeptId(id)}
             onSubmitSuccess={handleAddApplication}
             lang={lang}
+            intakeOpen={intakeOpen}
           />
 
           {/* FAQ */}
@@ -484,6 +505,8 @@ export default function App() {
             }}
             onSyncSheets={handleSyncSheets}
             onRefreshVolunteers={reloadVolunteers}
+            intakeOpen={intakeOpen}
+            onToggleIntake={handleToggleIntake}
           />
         </main>
       )}

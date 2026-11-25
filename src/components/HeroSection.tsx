@@ -6,14 +6,17 @@ interface HeroSectionProps {
   onOpenForm: () => void;
   onExploreDepartments: () => void;
   lang: Language;
+  intakeOpen?: boolean;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onOpenForm,
   onExploreDepartments,
   lang,
+  intakeOpen = true,
 }) => {
   const t = TRANSLATIONS[lang].hero;
+  const tIntake = TRANSLATIONS[lang].intake;
 
   const motivationalQuotes = {
     ky: {
@@ -48,10 +51,24 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
           {/* Left Column: Text & Value Proposition */}
           <div className="lg:col-span-7 flex flex-col justify-center space-y-6">
-            {/* Unboxed Metadata Kicker (Zero-pill discipline) */}
-            <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold tracking-wider text-emerald-300 uppercase">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{t.kicker}</span>
+            {/* Unboxed Metadata Kicker + Live Intake Status */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm font-semibold tracking-wider uppercase">
+              <div className="flex items-center gap-2 text-emerald-300">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>{t.kicker}</span>
+              </div>
+              <span
+                className={`inline-flex items-center gap-1.5 text-xs font-bold tracking-normal normal-case ${
+                  intakeOpen ? 'text-emerald-300' : 'text-amber-300'
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    intakeOpen ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                  }`}
+                />
+                <span>{intakeOpen ? tIntake.openBadge : tIntake.closedBadge}</span>
+              </span>
             </div>
 
             {/* Headline with balanced wrap */}
@@ -63,10 +80,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               {t.headlinePart2}
             </h1>
 
-            {/* Subtitle */}
-            <p className="text-base sm:text-lg text-emerald-100/90 max-w-2xl leading-relaxed font-light">
-              {t.subtitle}
-            </p>
+            {/* Subtitle & 17+ Eligibility */}
+            <div className="space-y-2 max-w-2xl">
+              <p className="text-base sm:text-lg text-emerald-100/90 leading-relaxed font-light">
+                {t.subtitle}
+              </p>
+              <p className="text-xs sm:text-sm font-semibold text-emerald-300 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{tIntake.ageRule}</span>
+              </p>
+            </div>
 
             {/* Mandatory Criteria Highlights */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs sm:text-sm text-stone-100 font-medium pt-1">
@@ -92,10 +115,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 onClick={onOpenForm}
-                className="flex items-center justify-center gap-2.5 px-6 py-3.5 sm:px-8 sm:py-4 rounded-xl text-stone-950 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 font-bold text-sm sm:text-base transition-all shadow-lg shadow-emerald-500/25 active:scale-98 whitespace-nowrap cursor-pointer"
+                className={`flex items-center justify-center gap-2.5 px-6 py-3.5 sm:px-8 sm:py-4 rounded-xl font-bold text-sm sm:text-base transition-all shadow-lg active:scale-98 whitespace-nowrap cursor-pointer ${
+                  intakeOpen
+                    ? 'text-stone-950 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 shadow-emerald-500/25'
+                    : 'text-amber-100 bg-amber-950/80 hover:bg-amber-900/80 border border-amber-500/50 shadow-amber-950/40'
+                }`}
               >
-                <Sparkles className="w-5 h-5 text-emerald-950" />
-                <span>{t.applyNow}</span>
+                <Sparkles className={`w-5 h-5 ${intakeOpen ? 'text-emerald-950' : 'text-amber-300'}`} />
+                <span>{intakeOpen ? t.applyNow : tIntake.closedShort}</span>
               </button>
 
               <button
