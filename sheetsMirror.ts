@@ -399,14 +399,17 @@ async function ensureSheetStructure(forceTabCheck = false): Promise<void> {
 
   const headerRes = await sheetsClient.spreadsheets.values.get({
     spreadsheetId: targetSheetId,
-    range: `${SHEET_NAME}!A1:R1`,
+    range: `${SHEET_NAME}!A1:Z1`,
   });
   const existingHeaders = headerRes.data.values?.[0] || [];
-  if (
-    existingHeaders.length === 0 ||
-    existingHeaders[0] !== 'id' ||
-    existingHeaders.length < VOLUNTEER_SHEET_HEADERS.length
-  ) {
+  const headersMatch =
+    existingHeaders.length === VOLUNTEER_SHEET_HEADERS.length &&
+    VOLUNTEER_SHEET_HEADERS.every((h, idx) => existingHeaders[idx] === h);
+  if (!headersMatch) {
+    await sheetsClient.spreadsheets.values.clear({
+      spreadsheetId: targetSheetId,
+      range: `${SHEET_NAME}!A1:Z1`,
+    });
     await sheetsClient.spreadsheets.values.update({
       spreadsheetId: targetSheetId,
       range: `${SHEET_NAME}!A1:R1`,
