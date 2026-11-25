@@ -29,6 +29,7 @@ export const VOLUNTEER_SHEET_HEADERS = [
   'certificates',
   'pastProjects',
   'selfieThumb',
+  'phone',
 ] as const;
 
 const VALID_STATUSES = new Set<ApplicationStatus>([
@@ -228,6 +229,7 @@ function serializeVolunteerRow(v: VolunteerRecord): string[] {
     JSON.stringify(v.certificates || []),
     JSON.stringify(v.pastProjects || []),
     thumb,
+    v.phone || '',
   ];
 }
 
@@ -294,6 +296,7 @@ function deserializeVolunteerRow(row: unknown[]): VolunteerRecord | null {
 
   const rawThumb = String(row[16] ?? '').trim();
   const selfieThumb = rawThumb.startsWith('data:image/') ? rawThumb : '';
+  const phone = String(row[17] ?? '').trim() || undefined;
 
   return {
     id,
@@ -311,6 +314,7 @@ function deserializeVolunteerRow(row: unknown[]): VolunteerRecord | null {
     motivation,
     availability,
     portfolioOrSocial,
+    phone,
     otherOrganizations,
     notes,
     certificates,
@@ -361,7 +365,7 @@ async function ensureSheetStructure(forceTabCheck = false): Promise<void> {
   if (justCreated) {
     await sheetsClient.spreadsheets.values.update({
       spreadsheetId: targetSheetId,
-      range: `${SHEET_NAME}!A1:Q1`,
+      range: `${SHEET_NAME}!A1:R1`,
       valueInputOption: 'RAW',
       requestBody: {
         values: [[...VOLUNTEER_SHEET_HEADERS]],
@@ -373,13 +377,17 @@ async function ensureSheetStructure(forceTabCheck = false): Promise<void> {
 
   const headerRes = await sheetsClient.spreadsheets.values.get({
     spreadsheetId: targetSheetId,
-    range: `${SHEET_NAME}!A1:Q1`,
+    range: `${SHEET_NAME}!A1:R1`,
   });
   const existingHeaders = headerRes.data.values?.[0] || [];
-  if (existingHeaders.length === 0 || existingHeaders[0] !== 'id') {
+  if (
+    existingHeaders.length === 0 ||
+    existingHeaders[0] !== 'id' ||
+    existingHeaders.length < VOLUNTEER_SHEET_HEADERS.length
+  ) {
     await sheetsClient.spreadsheets.values.update({
       spreadsheetId: targetSheetId,
-      range: `${SHEET_NAME}!A1:Q1`,
+      range: `${SHEET_NAME}!A1:R1`,
       valueInputOption: 'RAW',
       requestBody: {
         values: [[...VOLUNTEER_SHEET_HEADERS]],
@@ -413,7 +421,7 @@ async function readSheetDataRows(forceRefresh = false): Promise<string[][]> {
   const res = await withMissingTabRecovery(() =>
     sheetsClient!.spreadsheets.values.get({
       spreadsheetId: targetSheetId!,
-      range: `${SHEET_NAME}!A2:Q`,
+      range: `${SHEET_NAME}!A2:R`,
     })
   );
   const rows = (res.data.values || []).map((r) => r.map((cell) => String(cell ?? '')));
@@ -586,7 +594,7 @@ export const sheetsMirror = {
       await withMissingTabRecovery(() =>
         sheetsClient!.spreadsheets.values.append({
           spreadsheetId: targetSheetId!,
-          range: `${SHEET_NAME}!A:Q`,
+          range: `${SHEET_NAME}!A:R`,
           valueInputOption: 'RAW',
           insertDataOption: 'INSERT_ROWS',
           requestBody: {
@@ -667,7 +675,7 @@ export const sheetsMirror = {
       if (tabId === null) return;
       await sheetsClient.spreadsheets.values.clear({
         spreadsheetId: targetSheetId,
-        range: `${SHEET_NAME}!A2:Q`,
+        range: `${SHEET_NAME}!A2:R`,
       });
       invalidateCache();
     });
@@ -713,7 +721,7 @@ export const sheetsMirror = {
           await withMissingTabRecovery(() =>
             sheetsClient!.spreadsheets.values.append({
               spreadsheetId: targetSheetId!,
-              range: `${SHEET_NAME}!A:Q`,
+              range: `${SHEET_NAME}!A:R`,
               valueInputOption: 'RAW',
               insertDataOption: 'INSERT_ROWS',
               requestBody: {

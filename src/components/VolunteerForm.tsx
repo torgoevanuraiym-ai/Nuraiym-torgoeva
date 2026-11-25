@@ -23,6 +23,7 @@ import {
   Building2,
   Check,
   Image as ImageIcon,
+  Phone,
 } from 'lucide-react';
 import { Language, TRANSLATIONS } from '../data/translations';
 import { api, ApiError, SubmitVolunteerPayload } from '../api';
@@ -160,6 +161,14 @@ function getFormErrorMessage(lang: Language, code?: string, status?: number): st
       : 'Please enter a valid full name (at least 2 characters).';
   }
 
+  if (normalizedCode === 'invalid_phone') {
+    return lang === 'ky'
+      ? 'Телефон номериңизди туура жазыңыз (мисалы: +996 700 123 456).'
+      : lang === 'ru'
+      ? 'Укажите корректный номер телефона (например: +996 700 123 456).'
+      : 'Please enter a valid phone number (e.g. +996 700 123 456).';
+  }
+
   if (normalizedCode === 'invalid_department') {
     return lang === 'ky'
       ? 'Туура эмес багыт тандалды. Бөлүмдү кайра тандаңыз.'
@@ -264,8 +273,9 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
   const t = TRANSLATIONS[lang].form;
   const deptList = TRANSLATIONS[lang].departments.items;
 
-  // Basic info (no email, no phone, keep address!)
+  // Basic info (fullName, phone, address, age)
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [age, setAge] = useState('');
   const [department, setDepartment] = useState<DepartmentId>(selectedDepartmentId || 'media_smm');
@@ -630,9 +640,14 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
       return;
     }
 
-    // 2. Mandatory full name & address validation
+    // 2. Mandatory full name, phone & address validation
     if (!fullName.trim() || fullName.trim().length < 2) {
       setErrorMsg(getFormErrorMessage(lang, 'invalid_name'));
+      return;
+    }
+
+    if (!phone.trim() || phone.replace(/\D/g, '').length < 7) {
+      setErrorMsg(getFormErrorMessage(lang, 'invalid_phone'));
       return;
     }
 
@@ -721,6 +736,7 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
         certificates: validCerts,
         pastProjects: validProjects,
         portfolioOrSocial: portfolioOrSocial.trim(),
+        phone: phone.trim(),
         otherOrganizations: {
           isMember: isOtherOrgMember,
           details: isOtherOrgMember ? otherOrgDetails.trim() : undefined,
@@ -745,6 +761,7 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
 
       // Reset form ONLY after 201 server persistence
       setFullName('');
+      setPhone('');
       setAddress('');
       setAge('');
       setSelectedSkills([]);
@@ -1006,6 +1023,27 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
 
                 <div>
                   <label className="block text-xs sm:text-sm font-semibold text-stone-800 mb-1.5">
+                    {t.phone}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      required
+                      placeholder={t.phonePlaceholder}
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-stone-50 border border-stone-300 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-emerald-600 focus:bg-white text-sm transition-all shadow-xs"
+                    />
+                    <Phone className="w-4 h-4 text-emerald-600 absolute left-3.5 top-3" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-stone-800 mb-1.5">
                     {t.address}
                   </label>
                   <div className="relative">
@@ -1023,9 +1061,7 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
                     {t.addressHint}
                   </span>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-4">
                 <div>
                   <label className="block text-xs sm:text-sm font-semibold text-stone-800 mb-1.5">
                     {t.age}
@@ -1038,19 +1074,19 @@ export const VolunteerForm: React.FC<VolunteerFormProps> = ({
                     className="w-full px-4 py-2.5 rounded-xl bg-stone-50 border border-stone-300 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-emerald-600 focus:bg-white text-sm transition-all shadow-xs"
                   />
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs sm:text-sm font-semibold text-stone-800 mb-1.5">
-                    {t.instagram}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="@username же шилтеме"
-                    value={portfolioOrSocial}
-                    onChange={(e) => setPortfolioOrSocial(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-stone-50 border border-stone-300 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-emerald-600 focus:bg-white text-sm transition-all shadow-xs"
-                  />
-                </div>
+              <div className="mt-4">
+                <label className="block text-xs sm:text-sm font-semibold text-stone-800 mb-1.5">
+                  {t.instagram}
+                </label>
+                <input
+                  type="text"
+                  placeholder="@username же шилтеме"
+                  value={portfolioOrSocial}
+                  onChange={(e) => setPortfolioOrSocial(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-stone-50 border border-stone-300 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-emerald-600 focus:bg-white text-sm transition-all shadow-xs"
+                />
               </div>
             </div>
 

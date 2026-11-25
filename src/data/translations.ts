@@ -87,6 +87,8 @@ export interface Translations {
     addressHint: string;
     age: string;
     agePlaceholder: string;
+    phone: string;
+    phonePlaceholder: string;
     instagram: string;
     sec2: string;
     sec3: string;
@@ -126,6 +128,7 @@ export interface Translations {
     candidateBadge: string;
     deptLabel: string;
     addressLabel: string;
+    phoneLabel: string;
     ageLabel: string;
     achieveLabel: string;
     nextStepsTitle: string;
@@ -386,6 +389,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "addressHint": "Уюм менен байланышуу жана координация үчүн дарегиңиз калат.",
       "age": "Жашыңыз",
       "agePlaceholder": "Мисалы: 20",
+      "phone": "Телефон номериңиз (WhatsApp) *",
+      "phonePlaceholder": "Мисалы: +996 700 123 456",
       "instagram": "Жеке Instagram аккаунтуңуз же портфолио",
       "sec2": "2. Каалаган чыгармачыл багытты тандаңыз *",
       "sec3": "3. Сертификаттар жана жетишкендиктер (Сөзсүз) *",
@@ -430,6 +435,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "candidateBadge": "Талапкердин бейжиги",
       "deptLabel": "Багыты:",
       "addressLabel": "Дареги:",
+      "phoneLabel": "Телефон номери:",
       "ageLabel": "Жашы:",
       "achieveLabel": "Жетишкендиктер:",
       "nextStepsTitle": "Кийинки кадамдар:",
@@ -709,6 +715,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "addressHint": "Адрес сохраняется для координации и подтверждения участия.",
       "age": "Ваш возраст",
       "agePlaceholder": "Например: 20",
+      "phone": "Ваш номер телефона (WhatsApp) *",
+      "phonePlaceholder": "Например: +996 700 123 456",
       "instagram": "Ваш профиль в Instagram или портфолио",
       "sec2": "2. Выберите творческое направление *",
       "sec3": "3. Сертификаты и достижения (Обязательно) *",
@@ -753,6 +761,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "candidateBadge": "Бейдж кандидата",
       "deptLabel": "Направление:",
       "addressLabel": "Адрес:",
+      "phoneLabel": "Телефон:",
       "ageLabel": "Возраст:",
       "achieveLabel": "Достижения:",
       "nextStepsTitle": "Следующие шаги:",
@@ -1032,6 +1041,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "addressHint": "Your address is kept for community coordination and records.",
       "age": "Your Age",
       "agePlaceholder": "e.g. 20",
+      "phone": "Your Phone Number (WhatsApp) *",
+      "phonePlaceholder": "e.g. +996 700 123 456",
       "instagram": "Your Instagram Account or Portfolio",
       "sec2": "2. Select Your Preferred Creative Direction *",
       "sec3": "3. Certificates & Achievements (Mandatory) *",
@@ -1076,6 +1087,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       "candidateBadge": "Candidate Badge",
       "deptLabel": "Direction:",
       "addressLabel": "Address:",
+      "phoneLabel": "Phone Number:",
       "ageLabel": "Age:",
       "achieveLabel": "Achievements:",
       "nextStepsTitle": "Next Steps:",

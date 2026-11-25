@@ -788,6 +788,14 @@ async function startServer() {
       }
 
       // Sanitize remaining whitelisted fields
+      const phone = cleanString(body.phone, 40);
+      const phoneDigits = phone.replace(/\D/g, '');
+      if ((!isAdmin && phoneDigits.length < 7) || (phone && phoneDigits.length < 7)) {
+        logReject(400, 'invalid_phone');
+        res.status(400).json({ error: 'invalid_phone' });
+        return;
+      }
+
       const address = cleanString(body.address, 300);
       const age =
         cleanString(typeof body.age === 'number' ? String(body.age) : body.age, 20) || '18+';
@@ -863,6 +871,7 @@ async function startServer() {
         pastProjects,
         portfolioOrSocial,
         instagramHandle,
+        phone: phone || undefined,
         otherOrganizations,
         status: 'new',
         submittedAt: nowIso,

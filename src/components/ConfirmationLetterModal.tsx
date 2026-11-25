@@ -10,6 +10,7 @@ import {
   Award,
   FolderGit2,
   MapPin,
+  Phone,
 } from 'lucide-react';
 import { Language, TRANSLATIONS } from '../data/translations';
 
@@ -40,7 +41,7 @@ export const ConfirmationLetterModal: React.FC<ConfirmationLetterModalProps> = (
 РАСМИЙ ТАСТЫКТООЧУ КАТ (ЫРАСТОО)
 
 Катталуу номери: ${application.id}
-Талапкер: ${application.fullName}
+Талапкер: ${application.fullName}${application.phone ? `\nТелефон: ${application.phone}` : ''}
 Дареги: ${application.address}
 Тандалган багыт: ${deptTitle}
 Катталган убактысы: ${application.submittedAt}
@@ -166,6 +167,15 @@ export const ConfirmationLetterModal: React.FC<ConfirmationLetterModalProps> = (
                   <span className="text-stone-400 block">{t.ageLabel}</span>
                   <span className="text-stone-900 font-mono font-bold">{application.age} жашта</span>
                 </div>
+                {application.phone && (
+                  <div className="sm:col-span-2">
+                    <span className="text-stone-400 block flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-emerald-600 inline" />
+                      <span>{t.phoneLabel}</span>
+                    </span>
+                    <span className="text-stone-900 font-semibold font-mono">{application.phone}</span>
+                  </div>
+                )}
                 <div className="sm:col-span-2">
                   <span className="text-stone-400 block flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-emerald-600 inline" />

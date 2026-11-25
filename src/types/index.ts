@@ -41,7 +41,7 @@ export interface VolunteerApplication {
     isMember: boolean;
     details?: string;
   };
-  phone?: string; // removed from input
+  phone?: string;
   email?: string; // removed from input
   status: ApplicationStatus;
   submittedAt: string;

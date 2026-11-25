@@ -29,6 +29,7 @@ import {
   RefreshCw,
   AlertCircle,
   KeyRound,
+  Phone,
 } from 'lucide-react';
 import { Language, TRANSLATIONS } from '../data/translations';
 import { PUBLIC_SHARED_URL } from './ShareModal';
@@ -109,6 +110,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Manual Add Form States
   const [mName, setMName] = useState('');
+  const [mPhone, setMPhone] = useState('');
   const [mAddress, setMAddress] = useState('');
   const [mDept, setMDept] = useState<DepartmentId>('media_smm');
   const [mPhoto, setMPhoto] = useState('');
@@ -192,6 +194,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       const matchesSearch =
         !s ||
         vol.fullName.toLowerCase().includes(s) ||
+        (vol.phone && vol.phone.toLowerCase().includes(s)) ||
         vol.address.toLowerCase().includes(s) ||
         vol.id.toLowerCase().includes(s) ||
         (vol.cityOrUniversity && vol.cityOrUniversity.toLowerCase().includes(s)) ||
@@ -216,6 +219,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const headers = [
       'ID',
       'Толук аты-жөнү / ФИО',
+      'Телефон номери / Телефон',
       'Дареги / Локация',
       'Жашы / Возраст',
       'Чыгармачыл багыты / Направление',
@@ -233,6 +237,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const rows = dataToExport.map((v) => [
       v.id,
       `"${v.fullName.replace(/"/g, '""')}"`,
+      `"${(v.phone || '').replace(/"/g, '""')}"`,
       `"${v.address.replace(/"/g, '""')}"`,
       v.age || '',
       `"${getDeptTitle(v.department)}"`,
@@ -286,9 +291,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
+    const esc = (val: unknown) =>
+      String(val ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
     const headers = [
       'ID',
       'Толук аты-жөнү (ФИО)',
+      'Телефон номери',
       'Дареги / Локация',
       'Жашы',
       'Чыгармачыл багыты',
@@ -330,27 +343,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       <body>
         <table>
           <thead>
-            <tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr>
+            <tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>
           </thead>
           <tbody>
             ${dataToExport
               .map(
                 (v, idx) => `
               <tr class="${idx % 2 === 0 ? '' : 'even'}">
-                <td>${v.id}</td>
-                <td><b>${v.fullName}</b></td>
-                <td>${v.address}</td>
-                <td>${v.age || ''}</td>
-                <td>${getDeptTitle(v.department)}</td>
-                <td>${getStatusLabel(v.status)}</td>
-                <td>${v.submittedAt}</td>
-                <td>${(v.skills || []).join(', ')}</td>
-                <td>${v.certificates.map((c) => `${c.title} (${c.issuer}, ${c.year || ''})`).join('; ')}</td>
-                <td>${v.pastProjects.map((p) => `${p.title} [${p.role}] - ${p.description}`).join('; ')}</td>
-                <td>${v.otherOrganizations ? (v.otherOrganizations.isMember ? `Ооба: ${v.otherOrganizations.details || ''}` : 'Жок') : '-'}</td>
-                <td>${v.availability || ''}</td>
-                <td>${v.motivation || ''}</td>
-                <td>${v.portfolioOrSocial || ''}</td>
+                <td>${esc(v.id)}</td>
+                <td><b>${esc(v.fullName)}</b></td>
+                <td>${esc(v.phone || '')}</td>
+                <td>${esc(v.address)}</td>
+                <td>${esc(v.age || '')}</td>
+                <td>${esc(getDeptTitle(v.department))}</td>
+                <td>${esc(getStatusLabel(v.status))}</td>
+                <td>${esc(v.submittedAt)}</td>
+                <td>${esc((v.skills || []).join(', '))}</td>
+                <td>${esc(v.certificates.map((c) => `${c.title} (${c.issuer}, ${c.year || ''})`).join('; '))}</td>
+                <td>${esc(v.pastProjects.map((p) => `${p.title} [${p.role}] - ${p.description}`).join('; '))}</td>
+                <td>${esc(v.otherOrganizations ? (v.otherOrganizations.isMember ? `Ооба: ${v.otherOrganizations.details || ''}` : 'Жок') : '-')}</td>
+                <td>${esc(v.availability || '')}</td>
+                <td>${esc(v.motivation || '')}</td>
+                <td>${esc(v.portfolioOrSocial || '')}</td>
               </tr>
             `
               )
@@ -538,6 +552,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const payload: SubmitVolunteerPayload = {
       fullName: mName.trim(),
+      phone: mPhone.trim() || undefined,
       address: mAddress.trim(),
       age: '20',
       cityOrUniversity: mAddress.trim(),
@@ -558,6 +573,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     await onAddVolunteer(payload);
     setShowAddModal(false);
     setMName('');
+    setMPhone('');
     setMAddress('');
     setMPhoto('');
     setMCertTitle('');
@@ -1178,12 +1194,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           </div>
                         </td>
 
-                        {/* Name & ID */}
+                        {/* Name, ID & Phone */}
                         <td className="py-2.5 px-3">
                           <div className="font-bold text-stone-900">{vol.fullName}</div>
                           <div className="text-[11px] text-stone-400 font-mono">
                             {vol.id} · {vol.age} жашта
                           </div>
+                          {vol.phone && (
+                            <div className="text-[11px] text-emerald-800 font-mono font-semibold flex items-center gap-1 mt-0.5">
+                              <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                              <span>{vol.phone}</span>
+                            </div>
+                          )}
                         </td>
 
                         {/* Department */}
@@ -1334,6 +1356,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
                           <span className="truncate">{vol.address}</span>
                         </div>
+                        {vol.phone && (
+                          <div className="text-xs text-emerald-800 font-mono font-semibold truncate mt-0.5 flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                            <span className="truncate">{vol.phone}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1430,15 +1458,46 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </button>
             </div>
 
-            {/* Address Row (kept and emphasized) */}
-            <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200 text-xs">
-              <span className="text-stone-400 block font-medium flex items-center gap-1.5 mb-0.5">
-                <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Дареги / Окуу жайы:</span>
-              </span>
-              <span className="text-stone-900 font-semibold text-sm">
-                {activeVolunteerModal.address}
-              </span>
+            {/* Phone & Address Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200 text-xs">
+                <span className="text-stone-500 block font-medium flex items-center gap-1.5 mb-1">
+                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Телефон номери (WhatsApp):</span>
+                </span>
+                {activeVolunteerModal.phone ? (
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <a
+                      href={`tel:${activeVolunteerModal.phone.replace(/[^\d+]/g, '')}`}
+                      className="text-stone-900 font-bold font-mono text-sm hover:text-emerald-700"
+                    >
+                      {activeVolunteerModal.phone}
+                    </a>
+                    {activeVolunteerModal.phone.replace(/\D/g, '').length >= 7 && (
+                      <a
+                        href={`https://wa.me/${activeVolunteerModal.phone.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors"
+                      >
+                        WhatsApp
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-stone-400">Көрсөтүлгөн эмес</span>
+                )}
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200 text-xs">
+                <span className="text-stone-400 block font-medium flex items-center gap-1.5 mb-1">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Дареги / Окуу жайы:</span>
+                </span>
+                <span className="text-stone-900 font-semibold text-sm">
+                  {activeVolunteerModal.address}
+                </span>
+              </div>
             </div>
 
             {/* Section: Certificates (Mandatory) */}
@@ -1617,6 +1676,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   placeholder="Элдар Азизов"
                   value={mName}
                   onChange={(e) => setMName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-stone-700 font-medium mb-1">Телефон номери (WhatsApp)</label>
+                <input
+                  type="tel"
+                  placeholder="+996 700 123 456"
+                  value={mPhone}
+                  onChange={(e) => setMPhone(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:border-emerald-600"
                 />
               </div>

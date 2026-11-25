@@ -54,6 +54,7 @@ export interface VolunteerRecord {
   pastProjects: VolunteerPastProject[];
   portfolioOrSocial?: string;
   instagramHandle?: string;
+  phone?: string;
   otherOrganizations?: {
     isMember: boolean;
     details?: string;

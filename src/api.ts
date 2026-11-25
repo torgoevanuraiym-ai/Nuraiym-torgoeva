@@ -127,6 +127,7 @@ export interface SubmitVolunteerPayload {
   certificates: VolunteerCertificate[];
   pastProjects: VolunteerPastProject[];
   portfolioOrSocial?: string;
+  phone?: string;
   otherOrganizations?: {
     isMember: boolean;
     details?: string;
