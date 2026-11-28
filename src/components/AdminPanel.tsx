@@ -170,9 +170,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return `Саламатсызбы, ${vol.fullName}! Бизге ишеним көрсөтүп, «Жаратман Ордо» уюмуна анкета тапшырганыңыз үчүн терең ыраазычылык билдиребиз! (Анкета ID: ${vol.id}).`;
   };
 
-  const getWhatsAppNotifyUrl = (vol: VolunteerApplication): string | null => {
-    const digits = (vol.phone || '').replace(/\D/g, '');
+  const formatWhatsAppDigits = (phone?: string): string | null => {
+    const digits = (phone || '').replace(/\D/g, '');
     if (digits.length < 7) return null;
+    if (digits.length === 10 && digits.startsWith('0')) {
+      return `996${digits.slice(1)}`;
+    }
+    if (digits.length === 9 && /^[2579]/.test(digits)) {
+      return `996${digits}`;
+    }
+    return digits;
+  };
+
+  const getWhatsAppNotifyUrl = (vol: VolunteerApplication): string | null => {
+    const digits = formatWhatsAppDigits(vol.phone);
+    if (!digits) return null;
     return `https://wa.me/${digits}?text=${encodeURIComponent(buildVolunteerNotifyMessage(vol))}`;
   };
 
@@ -1676,16 +1688,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     >
                       {activeVolunteerModal.phone}
                     </a>
-                    {activeVolunteerModal.phone.replace(/\D/g, '').length >= 7 && (
-                      <a
-                        href={`https://wa.me/${activeVolunteerModal.phone.replace(/\D/g, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors"
-                      >
-                        WhatsApp
-                      </a>
-                    )}
+                    {(() => {
+                      const waUrl = getWhatsAppNotifyUrl(activeVolunteerModal);
+                      return waUrl ? (
+                        <a
+                          href={waUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 transition-colors"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>WhatsApp</span>
+                        </a>
+                      ) : null;
+                    })()}
                   </div>
                 ) : (
                   <span className="text-stone-400">Көрсөтүлгөн эмес</span>
@@ -1700,6 +1716,86 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <span className="text-stone-900 font-semibold text-sm">
                   {activeVolunteerModal.address}
                 </span>
+              </div>
+            </div>
+
+            {/* Section: Quick Notification Message (WhatsApp & Copy) */}
+            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-900">
+                  <MessageCircle className="w-4 h-4 text-emerald-700" />
+                  <span>
+                    {lang === 'ky'
+                      ? 'Талапкерге билдирүү жөнөтүү'
+                      : lang === 'ru'
+                      ? 'Уведомление кандидату'
+                      : 'Send Notification to Candidate'}
+                  </span>
+                </div>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusColor(
+                    activeVolunteerModal.status
+                  )}`}
+                >
+                  {getStatusText(activeVolunteerModal.status)}
+                </span>
+              </div>
+
+              <p className="text-xs text-stone-700 bg-white p-3 rounded-xl border border-emerald-200/80 leading-relaxed select-all">
+                {buildVolunteerNotifyMessage(activeVolunteerModal)}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                {(() => {
+                  const waUrl = getWhatsAppNotifyUrl(activeVolunteerModal);
+                  return waUrl ? (
+                    <a
+                      href={waUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>
+                        {lang === 'ky'
+                          ? 'WhatsApp аркылуу жиберүү'
+                          : lang === 'ru'
+                          ? 'Отправить в WhatsApp'
+                          : 'Send via WhatsApp'}
+                      </span>
+                    </a>
+                  ) : null;
+                })()}
+
+                <button
+                  type="button"
+                  onClick={() => handleCopyNotifyMessage(activeVolunteerModal)}
+                  className="px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                >
+                  {copiedNotifyId === activeVolunteerModal.id ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-600" />
+                      <span>
+                        {lang === 'ky'
+                          ? 'Көчүрүлдү!'
+                          : lang === 'ru'
+                          ? 'Скопировано!'
+                          : 'Copied!'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-emerald-700" />
+                      <span>
+                        {lang === 'ky'
+                          ? 'Билдирүүнү көчүрүү'
+                          : lang === 'ru'
+                          ? 'Копировать текст'
+                          : 'Copy Message'}
+                      </span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
 
@@ -1806,85 +1902,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             </div>
 
-            {/* Section: Quick Notification Message (WhatsApp & Copy) */}
-            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-900">
-                  <MessageCircle className="w-4 h-4 text-emerald-700" />
-                  <span>
-                    {lang === 'ky'
-                      ? 'Талапкерге билдирүү жөнөтүү'
-                      : lang === 'ru'
-                      ? 'Уведомление кандидату'
-                      : 'Send Notification to Candidate'}
-                  </span>
-                </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusColor(
-                    activeVolunteerModal.status
-                  )}`}
-                >
-                  {getStatusText(activeVolunteerModal.status)}
-                </span>
-              </div>
-
-              <p className="text-xs text-stone-700 bg-white p-3 rounded-xl border border-emerald-200/80 leading-relaxed select-all">
-                {buildVolunteerNotifyMessage(activeVolunteerModal)}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                {(() => {
-                  const waUrl = getWhatsAppNotifyUrl(activeVolunteerModal);
-                  return waUrl ? (
-                    <a
-                      href={waUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>
-                        {lang === 'ky'
-                          ? 'WhatsApp аркылуу жиберүү'
-                          : lang === 'ru'
-                          ? 'Отправить в WhatsApp'
-                          : 'Send via WhatsApp'}
-                      </span>
-                    </a>
-                  ) : null;
-                })()}
-
-                <button
-                  type="button"
-                  onClick={() => handleCopyNotifyMessage(activeVolunteerModal)}
-                  className="px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
-                >
-                  {copiedNotifyId === activeVolunteerModal.id ? (
-                    <>
-                      <Check className="w-4 h-4 text-emerald-600" />
-                      <span>
-                        {lang === 'ky'
-                          ? 'Көчүрүлдү!'
-                          : lang === 'ru'
-                          ? 'Скопировано!'
-                          : 'Copied!'}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4 text-emerald-700" />
-                      <span>
-                        {lang === 'ky'
-                          ? 'Билдирүүнү көчүрүү'
-                          : lang === 'ru'
-                          ? 'Копировать текст'
-                          : 'Copy Message'}
-                      </span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
 
             {/* Status Change in Modal */}
             <div className="pt-4 border-t border-stone-200 flex flex-wrap items-center justify-between gap-3">
