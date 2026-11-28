@@ -459,11 +459,14 @@ async function startServer() {
   await store.init();
   await sheetsMirror.init();
 
+  let explicitlyClearedVolunteers = false;
+  let explicitlyClearedAnnouncements = false;
+
   // Restore from Google Sheets backup on startup if primary db.json is empty
   if (sheetsMirror.isEnabled()) {
     const existingVolunteers = await store.listVolunteers();
     if (existingVolunteers.length === 0) {
-      const restored = await sheetsMirror.restoreFromSheet();
+      const restored = await sheetsMirror.restoreFromSheet(true);
       if (restored.length > 0) {
         await store.setVolunteers(restored);
         console.log(
@@ -679,7 +682,18 @@ async function startServer() {
           return;
         }
 
-        const volunteers = await store.listVolunteers();
+        let volunteers = await store.listVolunteers();
+        if (sheetsMirror.isEnabled() && !explicitlyClearedVolunteers) {
+          const fromSheet = await sheetsMirror.restoreFromSheet(true);
+          if (fromSheet.length > 0) {
+            const localIds = new Set(volunteers.map((v) => v.id));
+            const missingLocally = fromSheet.filter((v) => !localIds.has(v.id));
+            if (missingLocally.length > 0) {
+              volunteers = [...volunteers, ...missingLocally];
+              await store.setVolunteers(volunteers);
+            }
+          }
+        }
         const result = await sheetsMirror.syncMissingVolunteers(volunteers);
         sheetsMirror.enqueueSaveAnnouncements(await store.listAnnouncements());
         sheetsMirror.enqueueSaveSettings(await store.getSettings());
@@ -946,12 +960,14 @@ async function startServer() {
         return;
       }
 
-      // Primary write to data/db.json FIRST, then background mirror to Google Sheets
+      // Primary write to data/db.json FIRST, then mirror to Google Sheets
+      explicitlyClearedVolunteers = false;
       const saved = await store.addVolunteer(record);
       console.log(
         `[volunteers] Saved POST /api/volunteers id=${saved.id}, selfiePhotoUrl.length=${saved.selfiePhotoUrl.length}`
       );
       sheetsMirror.enqueueAppendVolunteer(saved);
+      await sheetsMirror.flush(3000);
       res.status(201).json(saved);
     })
   );
@@ -960,7 +976,17 @@ async function startServer() {
     '/api/volunteers',
     requireAdmin,
     asyncHandler(async (_req, res) => {
-      const volunteers = await store.listVolunteers();
+      let volunteers = await store.listVolunteers();
+      if (volunteers.length === 0 && sheetsMirror.isEnabled() && !explicitlyClearedVolunteers) {
+        const restored = await sheetsMirror.restoreFromSheet(true);
+        if (restored.length > 0) {
+          await store.setVolunteers(restored);
+          volunteers = await store.listVolunteers();
+          console.log(
+            `[server] Auto-restored ${volunteers.length} volunteers from Google Sheets on GET.`
+          );
+        }
+      }
       res.json({ volunteers });
     })
   );
@@ -1027,6 +1053,7 @@ async function startServer() {
     '/api/volunteers',
     requireAdmin,
     asyncHandler(async (_req, res) => {
+      explicitlyClearedVolunteers = true;
       await store.clearVolunteers();
       sheetsMirror.enqueueClearVolunteers();
       res.json({ ok: true });
@@ -1037,7 +1064,14 @@ async function startServer() {
   app.get(
     '/api/announcements',
     asyncHandler(async (_req, res) => {
-      const announcements = await store.listAnnouncements();
+      let announcements = await store.listAnnouncements();
+      if (announcements.length === 0 && sheetsMirror.isEnabled() && !explicitlyClearedAnnouncements) {
+        const restoredAnn = await sheetsMirror.restoreAnnouncementsFromSheet();
+        if (restoredAnn.length > 0) {
+          await store.setAnnouncements(restoredAnn);
+          announcements = restoredAnn;
+        }
+      }
       res.json({ announcements });
     })
   );
@@ -1079,6 +1113,7 @@ async function startServer() {
         actionText: cleanString(body.actionText, 100) || undefined,
       };
 
+      explicitlyClearedAnnouncements = false;
       const saved = await store.upsertAnnouncement(record);
       sheetsMirror.enqueueSaveAnnouncements(await store.listAnnouncements());
       res.status(201).json(saved);
@@ -1168,6 +1203,7 @@ async function startServer() {
     '/api/announcements',
     requireAdmin,
     asyncHandler(async (_req, res) => {
+      explicitlyClearedAnnouncements = true;
       await store.clearAnnouncements();
       sheetsMirror.enqueueSaveAnnouncements([]);
       res.json({ ok: true });

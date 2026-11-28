@@ -734,10 +734,10 @@ export const sheetsMirror = {
     });
   },
 
-  async restoreFromSheet(): Promise<VolunteerRecord[]> {
+  async restoreFromSheet(forceRefresh = false): Promise<VolunteerRecord[]> {
     if (!enabled || !sheetsClient || !targetSheetId) return [];
     try {
-      const rows = await withRetry('restoreFromSheet', () => readSheetDataRows(false), 2);
+      const rows = await withRetry('restoreFromSheet', () => readSheetDataRows(forceRefresh), 2);
       const records = rows
         .map((row) => deserializeVolunteerRow(row))
         .filter((item): item is VolunteerRecord => item !== null);

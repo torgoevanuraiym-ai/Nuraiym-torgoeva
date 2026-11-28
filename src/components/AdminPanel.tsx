@@ -30,6 +30,8 @@ import {
   AlertCircle,
   KeyRound,
   Phone,
+  MessageCircle,
+  Copy,
 } from 'lucide-react';
 import { Language, TRANSLATIONS } from '../data/translations';
 import { PUBLIC_SHARED_URL } from './ShareModal';
@@ -98,6 +100,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isSyncingSheets, setIsSyncingSheets] = useState(false);
   const [isRefreshingVolunteers, setIsRefreshingVolunteers] = useState(false);
   const [isTogglingIntake, setIsTogglingIntake] = useState(false);
+  const [copiedNotifyId, setCopiedNotifyId] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState<string>('all');
@@ -127,6 +130,79 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const getDeptTitle = (id: DepartmentId) => {
     const d = deptList.find((item) => item.id === id);
     return d ? d.title : id;
+  };
+
+  const buildVolunteerNotifyMessage = (vol: VolunteerApplication): string => {
+    const deptTitle = getDeptTitle(vol.department);
+    if (vol.status === 'accepted') {
+      if (lang === 'ru') {
+        return `Здравствуйте, ${vol.fullName}! 🎉 Поздравляем — вы ПРИНЯТЫ в команду волонтёров «Жаратман Ордо» по направлению «${deptTitle}»! (ID анкеты: ${vol.id}). Искренне благодарим вас за оказанное доверие и желание развиваться вместе с нами! Добро пожаловать в команду — скоро мы свяжемся с вами и добавим в общий чат.`;
+      }
+      if (lang === 'en') {
+        return `Hello ${vol.fullName}! 🎉 Congratulations — you have been ACCEPTED as a volunteer at «Jaratman Ordo» in the «${deptTitle}» department! (Application ID: ${vol.id}). Thank you sincerely for trusting us and choosing to grow with our community. Welcome to the team — we will reach out shortly to add you to our group chat.`;
+      }
+      return `Саламатсызбы, ${vol.fullName}! 🎉 Куттуктайбыз — сиз «Жаратман Ордо» чыгармачыл жаштар уюмунун «${deptTitle}» багыты боюнча ыктыярчылар катарына КАБЫЛ АЛЫНДЫҢЫЗ! (Анкета ID: ${vol.id}). Бизге ишеним көрсөтүп, катарыбызга кошулууну тандаганыңыз үчүн терең ыраазычылык билдиребиз! Кош келиңиз — жакынкы убакта сиз менен байланышып, команданын жалпы чатына кошобуз.`;
+    }
+    if (vol.status === 'interview_scheduled') {
+      if (lang === 'ru') {
+        return `Здравствуйте, ${vol.fullName}! Благодарим за оказанное доверие и анкету в «Жаратман Ордо» (ID: ${vol.id}). Ваша заявка рассмотрена, и мы приглашаем вас на короткое интервью!`;
+      }
+      if (lang === 'en') {
+        return `Hello ${vol.fullName}! Thank you for trusting «Jaratman Ordo» and submitting your application (ID: ${vol.id}). Your form has been reviewed and we would love to invite you for a short interview!`;
+      }
+      return `Саламатсызбы, ${vol.fullName}! Бизге ишеним көрсөтүп, «Жаратман Ордо» уюмуна анкета тапшырганыңыз үчүн ыраазычылык билдиребиз! Сиздин анкетаңыз (ID: ${vol.id}) каралды — сизди кыскача маектешүүгө чакырабыз!`;
+    }
+    if (vol.status === 'waitlist') {
+      if (lang === 'ru') {
+        return `Здравствуйте, ${vol.fullName}! Благодарим за оказанное доверие к «Жаратман Ордо». Ваша анкета (ID: ${vol.id}) добавлена в резерв — при появлении свободного места мы обязательно свяжемся с вами.`;
+      }
+      if (lang === 'en') {
+        return `Hello ${vol.fullName}! Thank you for your trust in «Jaratman Ordo». Your application (ID: ${vol.id}) has been placed on our waitlist, and we will contact you as soon as a spot opens.`;
+      }
+      return `Саламатсызбы, ${vol.fullName}! «Жаратман Ордо» уюмуна ишеним көрсөткөнүңүз үчүн ыраазычылык билдиребиз! Сиздин анкетаңыз (ID: ${vol.id}) резерв тизмесине киргизилди — бош орун пайда болгондо сөзсүз байланышабыз.`;
+    }
+    if (lang === 'ru') {
+      return `Здравствуйте, ${vol.fullName}! Искренне благодарим за оказанное доверие и анкету в «Жаратман Ордо» (ID: ${vol.id}).`;
+    }
+    if (lang === 'en') {
+      return `Hello ${vol.fullName}! Thank you sincerely for trusting «Jaratman Ordo» and submitting your application (ID: ${vol.id}).`;
+    }
+    return `Саламатсызбы, ${vol.fullName}! Бизге ишеним көрсөтүп, «Жаратман Ордо» уюмуна анкета тапшырганыңыз үчүн терең ыраазычылык билдиребиз! (Анкета ID: ${vol.id}).`;
+  };
+
+  const getWhatsAppNotifyUrl = (vol: VolunteerApplication): string | null => {
+    const digits = (vol.phone || '').replace(/\D/g, '');
+    if (digits.length < 7) return null;
+    return `https://wa.me/${digits}?text=${encodeURIComponent(buildVolunteerNotifyMessage(vol))}`;
+  };
+
+  const handleCopyNotifyMessage = async (vol: VolunteerApplication) => {
+    const text = buildVolunteerNotifyMessage(vol);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedNotifyId(vol.id);
+      setVolunteerActionToastType('success');
+      setVolunteerActionToast(
+        lang === 'ky'
+          ? `✓ ${vol.fullName} үчүн билдирүү тексти көчүрүлдү!`
+          : lang === 'ru'
+          ? `✓ Текст уведомления для ${vol.fullName} скопирован!`
+          : `✓ Notification message copied for ${vol.fullName}!`
+      );
+      setTimeout(() => setCopiedNotifyId((prev) => (prev === vol.id ? null : prev)), 2500);
+      setTimeout(() => setVolunteerActionToast(null), 3500);
+    } catch {
+      // ignore
+    }
   };
 
   const getStatusLabel = (status: ApplicationStatus) => {
@@ -1328,6 +1404,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         {/* Actions */}
                         <td className="py-2.5 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {(vol.status === 'accepted' || vol.status === 'interview_scheduled') &&
+                              (() => {
+                                const waUrl = getWhatsAppNotifyUrl(vol);
+                                return waUrl ? (
+                                  <a
+                                    href={waUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 transition-colors"
+                                    title={
+                                      lang === 'ky'
+                                        ? 'WhatsApp аркылуу билдирүү жиберүү'
+                                        : 'Отправить в WhatsApp'
+                                    }
+                                  >
+                                    <MessageCircle className="w-3.5 h-3.5" />
+                                    <span className="hidden xl:inline">WhatsApp</span>
+                                  </a>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyNotifyMessage(vol)}
+                                    className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                    title={
+                                      lang === 'ky'
+                                        ? 'Билдирүү текстин көчүрүү'
+                                        : 'Копировать текст уведомления'
+                                    }
+                                  >
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span className="hidden xl:inline">
+                                      {copiedNotifyId === vol.id ? '✓' : 'Билдирүү'}
+                                    </span>
+                                  </button>
+                                );
+                              })()}
                             <button
                               onClick={() => setActiveVolunteerModal(vol)}
                               className="p-1.5 rounded-lg bg-stone-100 hover:bg-emerald-100 text-stone-700 hover:text-emerald-900 transition-colors cursor-pointer"
@@ -1447,6 +1559,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                   {/* Actions */}
                   <div className="pt-2 flex items-center justify-end gap-2">
+                    {(vol.status === 'accepted' || vol.status === 'interview_scheduled') &&
+                      (() => {
+                        const waUrl = getWhatsAppNotifyUrl(vol);
+                        return waUrl ? (
+                          <a
+                            href={waUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 transition-colors"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>WhatsApp</span>
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyNotifyMessage(vol)}
+                            className="py-1.5 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>{copiedNotifyId === vol.id ? '✓' : 'Билдирүү'}</span>
+                          </button>
+                        );
+                      })()}
                     <button
                       onClick={() => setActiveVolunteerModal(vol)}
                       className="flex-1 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
@@ -1667,6 +1803,86 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 ) : (
                   <span className="text-stone-500">Көрсөтүлгөн эмес</span>
                 )}
+              </div>
+            </div>
+
+            {/* Section: Quick Notification Message (WhatsApp & Copy) */}
+            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-900">
+                  <MessageCircle className="w-4 h-4 text-emerald-700" />
+                  <span>
+                    {lang === 'ky'
+                      ? 'Талапкерге билдирүү жөнөтүү'
+                      : lang === 'ru'
+                      ? 'Уведомление кандидату'
+                      : 'Send Notification to Candidate'}
+                  </span>
+                </div>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusColor(
+                    activeVolunteerModal.status
+                  )}`}
+                >
+                  {getStatusText(activeVolunteerModal.status)}
+                </span>
+              </div>
+
+              <p className="text-xs text-stone-700 bg-white p-3 rounded-xl border border-emerald-200/80 leading-relaxed select-all">
+                {buildVolunteerNotifyMessage(activeVolunteerModal)}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                {(() => {
+                  const waUrl = getWhatsAppNotifyUrl(activeVolunteerModal);
+                  return waUrl ? (
+                    <a
+                      href={waUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>
+                        {lang === 'ky'
+                          ? 'WhatsApp аркылуу жиберүү'
+                          : lang === 'ru'
+                          ? 'Отправить в WhatsApp'
+                          : 'Send via WhatsApp'}
+                      </span>
+                    </a>
+                  ) : null;
+                })()}
+
+                <button
+                  type="button"
+                  onClick={() => handleCopyNotifyMessage(activeVolunteerModal)}
+                  className="px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                >
+                  {copiedNotifyId === activeVolunteerModal.id ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-600" />
+                      <span>
+                        {lang === 'ky'
+                          ? 'Көчүрүлдү!'
+                          : lang === 'ru'
+                          ? 'Скопировано!'
+                          : 'Copied!'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-emerald-700" />
+                      <span>
+                        {lang === 'ky'
+                          ? 'Билдирүүнү көчүрүү'
+                          : lang === 'ru'
+                          ? 'Копировать текст'
+                          : 'Copy Message'}
+                      </span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
 
